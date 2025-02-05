@@ -146,13 +146,13 @@ After=network.target
 
 [Service]
 # 改成你的用户名
-User=${process.env.USER}
+User=ecs-user
 # 总是自动重新启动
 Restart=always
 # 重启前等待5秒
 RestartSec=5
 # 启动derper的命令，跟上面测试用的命令一样
-ExecStart=/home/${process.env.USER}/go/bin/derper -hostname ${domainPrefix}.${DERP_DOMAIN} -a :${DERP_PORT} --http-port -1 -certmode manual -certdir /home/${process.env.USER}/derper/ssl/ -c /home/${process.env.USER}/derper/derper.conf -stun-port ${STUN_PORT}
+ExecStart=/home/ecs-user/go/bin/derper -hostname ${domainPrefix}.${DERP_DOMAIN} -a :${DERP_PORT} --http-port -1 -certmode manual -certdir /home/ecs-user/derper/ssl/ -c /home/ecs-user/derper/derper.conf -stun-port ${STUN_PORT}
 # 停止derper的命令
 ExecStop=/bin/kill $MAINPID
 
