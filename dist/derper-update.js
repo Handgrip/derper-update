@@ -52,8 +52,8 @@ const client = new cloudflare_1.default({
 });
 function getIpAddress() {
     return __awaiter(this, void 0, void 0, function* () {
-        const response = yield axios_1.default.get("https://api.ipify.org?format=json");
-        return response.data.ip;
+        const response = yield axios_1.default.get("https://ip.oi.al/");
+        return response.data;
     });
 }
 function updateTailscaleAcl(domainPrefix) {

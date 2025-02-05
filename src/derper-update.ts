@@ -16,8 +16,8 @@ const client = new Cloudflare({
 });
 
 async function getIpAddress() {
-    const response = await axios.get("https://api.ipify.org?format=json");
-    return response.data.ip;
+    const response = await axios.get("https://ip.oi.al/");
+    return response.data;
 }
 
 async function updateTailscaleAcl(domainPrefix: string) {
