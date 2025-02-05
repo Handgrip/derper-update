@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@types/oauth": "^0.9.6",
+    "axios": "^1.6.1",
+    "cloudflare": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.61",
+    "typescript": "^5.2.2"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/derper-update.js"
+  }
+}
