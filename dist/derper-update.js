@@ -54,10 +54,13 @@ const TS_CLIENT_SECRET = (_b = process.env.TS_CLIENT_SECRET) !== null && _b !== 
 const DERP_PORT = +((_c = process.env.DERP_PORT) !== null && _c !== void 0 ? _c : "");
 const STUN_PORT = +((_d = process.env.STUN_PORT) !== null && _d !== void 0 ? _d : "");
 const DERP_DOMAIN = process.env.DERP_DOMAIN;
+const HTTP_TIMEOUT = 5000;
 function getIpV4Address() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const response = yield axios_1.default.get("https://ipv4.seeip.org");
+            const response = yield axios_1.default.get("https://ipv4.seeip.org", {
+                timeout: HTTP_TIMEOUT,
+            });
             return response.data;
         }
         catch (e) {
@@ -69,7 +72,9 @@ function getIpV4Address() {
 function getIpV6Address() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const response = yield axios_1.default.get("https://ipv6.seeip.org");
+            const response = yield axios_1.default.get("https://ipv6.seeip.org", {
+                timeout: HTTP_TIMEOUT,
+            });
             return response.data;
         }
         catch (e) {
@@ -81,13 +86,16 @@ function getIpV6Address() {
 function updateTailscaleAcl(domainPrefix, ipv4, ipv6) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
-        const tokenResponse = yield axios_1.default.post("https://api.tailscale.com/api/v2/oauth/token", `client_id=${TS_CLIENT_ID}&client_secret=${TS_CLIENT_SECRET}`);
+        const tokenResponse = yield axios_1.default.post("https://api.tailscale.com/api/v2/oauth/token", `client_id=${TS_CLIENT_ID}&client_secret=${TS_CLIENT_SECRET}`, {
+            timeout: HTTP_TIMEOUT,
+        });
         console.log(tokenResponse.data.access_token);
         const access_token = tokenResponse.data.access_token;
         const acl = (yield axios_1.default.request({
             method: "GET",
             url: "https://api.tailscale.com/api/v2/tailnet/handgrip.github/acl",
             headers: { Authorization: `Bearer ${access_token}` },
+            timeout: HTTP_TIMEOUT,
         })).data;
         const newRegions = {};
         for (const regionSlug in acl.derpMap.Regions) {
@@ -126,6 +134,7 @@ function updateTailscaleAcl(domainPrefix, ipv4, ipv6) {
             url: "https://api.tailscale.com/api/v2/tailnet/handgrip.github/acl",
             headers: { Authorization: `Bearer ${access_token}` },
             data: acl,
+            timeout: HTTP_TIMEOUT,
         })).data;
         console.log(JSON.stringify(latestAcl));
     });

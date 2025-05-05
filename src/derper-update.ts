@@ -7,10 +7,13 @@ const TS_CLIENT_SECRET = process.env.TS_CLIENT_SECRET ?? "";
 const DERP_PORT = +(process.env.DERP_PORT ?? "");
 const STUN_PORT = +(process.env.STUN_PORT ?? "");
 const DERP_DOMAIN = process.env.DERP_DOMAIN;
+const HTTP_TIMEOUT = 5000;
 
 async function getIpV4Address() {
     try {
-        const response = await axios.get("https://ipv4.seeip.org");
+        const response = await axios.get("https://ipv4.seeip.org", {
+            timeout: HTTP_TIMEOUT,
+        });
         return response.data;
     } catch (e) {
         console.error("Error getting IPv4 address:", e);
@@ -20,7 +23,9 @@ async function getIpV4Address() {
 
 async function getIpV6Address() {
     try {
-        const response = await axios.get("https://ipv6.seeip.org");
+        const response = await axios.get("https://ipv6.seeip.org", {
+            timeout: HTTP_TIMEOUT,
+        });
         return response.data;
     } catch (e) {
         console.error("Error getting IPv6 address:", e);
@@ -35,7 +40,10 @@ async function updateTailscaleAcl(
 ) {
     const tokenResponse = await axios.post(
         "https://api.tailscale.com/api/v2/oauth/token",
-        `client_id=${TS_CLIENT_ID}&client_secret=${TS_CLIENT_SECRET}`
+        `client_id=${TS_CLIENT_ID}&client_secret=${TS_CLIENT_SECRET}`,
+        {
+            timeout: HTTP_TIMEOUT,
+        }
     );
     console.log(tokenResponse.data.access_token);
     const access_token = tokenResponse.data.access_token;
@@ -45,6 +53,7 @@ async function updateTailscaleAcl(
             method: "GET",
             url: "https://api.tailscale.com/api/v2/tailnet/handgrip.github/acl",
             headers: { Authorization: `Bearer ${access_token}` },
+            timeout: HTTP_TIMEOUT,
         })
     ).data;
 
@@ -86,6 +95,7 @@ async function updateTailscaleAcl(
             url: "https://api.tailscale.com/api/v2/tailnet/handgrip.github/acl",
             headers: { Authorization: `Bearer ${access_token}` },
             data: acl,
+            timeout: HTTP_TIMEOUT,
         })
     ).data;
     console.log(JSON.stringify(latestAcl));
