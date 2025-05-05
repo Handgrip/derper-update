@@ -136,8 +136,8 @@ function writeDomainPrefix(domainPrefix: string) {
 }
 
 async function main() {
-    const ipv4 = await getIpV4Address();
-    const ipv6 = await getIpV6Address();
+    const ipv4 = (await getIpV4Address()) ?? "";
+    const ipv6 = (await getIpV6Address()) ?? "";
     const domainPrefix = "auto-derp-" + ipv4.replace(/\./g, "-");
     console.log("IPv4:", ipv4);
     console.log("IPv6:", ipv6);
