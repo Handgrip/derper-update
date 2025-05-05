@@ -1,26 +1,38 @@
 import axios from "axios";
-import Cloudflare from "cloudflare";
 import * as fs from "fs";
 import path from "path";
 
-const CF_ZONE_ID = process.env.CF_ZONE_ID ?? "";
-const CF_TOKEN = process.env.CF_TOKEN ?? "";
 const TS_CLIENT_ID = process.env.TS_CLIENT_ID ?? "";
 const TS_CLIENT_SECRET = process.env.TS_CLIENT_SECRET ?? "";
 const DERP_PORT = +(process.env.DERP_PORT ?? "");
 const STUN_PORT = +(process.env.STUN_PORT ?? "");
 const DERP_DOMAIN = process.env.DERP_DOMAIN;
 
-const client = new Cloudflare({
-    apiToken: CF_TOKEN,
-});
-
-async function getIpAddress() {
-    const response = await axios.get("https://ip.oi.al/");
-    return response.data;
+async function getIpV4Address() {
+    try {
+        const response = await axios.get("https://ipv4.seeip.org");
+        return response.data;
+    } catch (e) {
+        console.error("Error getting IPv4 address:", e);
+        return null;
+    }
 }
 
-async function updateTailscaleAcl(domainPrefix: string) {
+async function getIpV6Address() {
+    try {
+        const response = await axios.get("https://ipv6.seeip.org");
+        return response.data;
+    } catch (e) {
+        console.error("Error getting IPv6 address:", e);
+        return null;
+    }
+}
+
+async function updateTailscaleAcl(
+    domainPrefix: string,
+    ipv4: string,
+    ipv6: string
+) {
     const tokenResponse = await axios.post(
         "https://api.tailscale.com/api/v2/oauth/token",
         `client_id=${TS_CLIENT_ID}&client_secret=${TS_CLIENT_SECRET}`
@@ -62,6 +74,8 @@ async function updateTailscaleAcl(domainPrefix: string) {
                 InsecureForTests: true,
                 DERPPort: DERP_PORT,
                 STUNPort: STUN_PORT,
+                IPv4: ipv4 ? ipv4 : null,
+                IPv6: ipv6 ? ipv6 : null,
             },
         ],
     };
@@ -75,35 +89,6 @@ async function updateTailscaleAcl(domainPrefix: string) {
         })
     ).data;
     console.log(JSON.stringify(latestAcl));
-}
-
-async function createSelfIpRecord(domainPrefix: string, ip: any) {
-    await client.dns.records.create({
-        type: "A",
-        zone_id: CF_ZONE_ID,
-        name: domainPrefix,
-        content: ip,
-        proxied: false,
-        ttl: 60,
-    });
-    console.log("Updated DNS record for", domainPrefix, "to", ip);
-}
-
-async function removeExistRecord() {
-    const dnsRecords = await client.dns.records.list({
-        zone_id: CF_ZONE_ID,
-        name: {
-            startswith: "auto-derp",
-        },
-        type: "A",
-    });
-    // remove all records
-    for (const record of dnsRecords.result) {
-        await client.dns.records.delete(record.id, {
-            zone_id: CF_ZONE_ID,
-        });
-        console.log("Deleted DNS record for", record.name);
-    }
 }
 
 function writeServiceFile(domainPrefix: string) {
@@ -141,13 +126,13 @@ function writeDomainPrefix(domainPrefix: string) {
 }
 
 async function main() {
-    await removeExistRecord();
-    const ip = await getIpAddress();
-    const domainPrefix = "auto-derp-" + ip.replace(/\./g, "-");
-    await createSelfIpRecord(domainPrefix, ip);
-    // sleep 5 seconds to wait for DNS to propagate
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-    await updateTailscaleAcl(domainPrefix);
+    const ipv4 = await getIpV4Address();
+    const ipv6 = await getIpV6Address();
+    const domainPrefix = "auto-derp-" + ipv4.replace(/\./g, "-");
+    console.log("IPv4:", ipv4);
+    console.log("IPv6:", ipv6);
+    console.log("Domain Prefix:", domainPrefix);
+    await updateTailscaleAcl(domainPrefix, ipv4, ipv6);
     writeServiceFile(domainPrefix);
     writeDomainPrefix(domainPrefix);
 }

@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -34,31 +44,43 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a, _b, _c, _d, _e, _f;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
-const cloudflare_1 = __importDefault(require("cloudflare"));
 const fs = __importStar(require("fs"));
 const path_1 = __importDefault(require("path"));
-const CF_ZONE_ID = (_a = process.env.CF_ZONE_ID) !== null && _a !== void 0 ? _a : "";
-const CF_TOKEN = (_b = process.env.CF_TOKEN) !== null && _b !== void 0 ? _b : "";
-const TS_CLIENT_ID = (_c = process.env.TS_CLIENT_ID) !== null && _c !== void 0 ? _c : "";
-const TS_CLIENT_SECRET = (_d = process.env.TS_CLIENT_SECRET) !== null && _d !== void 0 ? _d : "";
-const DERP_PORT = +((_e = process.env.DERP_PORT) !== null && _e !== void 0 ? _e : "");
-const STUN_PORT = +((_f = process.env.STUN_PORT) !== null && _f !== void 0 ? _f : "");
+const TS_CLIENT_ID = (_a = process.env.TS_CLIENT_ID) !== null && _a !== void 0 ? _a : "";
+const TS_CLIENT_SECRET = (_b = process.env.TS_CLIENT_SECRET) !== null && _b !== void 0 ? _b : "";
+const DERP_PORT = +((_c = process.env.DERP_PORT) !== null && _c !== void 0 ? _c : "");
+const STUN_PORT = +((_d = process.env.STUN_PORT) !== null && _d !== void 0 ? _d : "");
 const DERP_DOMAIN = process.env.DERP_DOMAIN;
-const client = new cloudflare_1.default({
-    apiToken: CF_TOKEN,
-});
-function getIpAddress() {
+function getIpV4Address() {
     return __awaiter(this, void 0, void 0, function* () {
-        const response = yield axios_1.default.get("https://ip.oi.al/");
-        return response.data;
+        try {
+            const response = yield axios_1.default.get("https://ipv4.seeip.org");
+            return response.data;
+        }
+        catch (e) {
+            console.error("Error getting IPv4 address:", e);
+            return null;
+        }
     });
 }
-function updateTailscaleAcl(domainPrefix) {
-    var _a;
+function getIpV6Address() {
     return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const response = yield axios_1.default.get("https://ipv6.seeip.org");
+            return response.data;
+        }
+        catch (e) {
+            console.error("Error getting IPv6 address:", e);
+            return null;
+        }
+    });
+}
+function updateTailscaleAcl(domainPrefix, ipv4, ipv6) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         const tokenResponse = yield axios_1.default.post("https://api.tailscale.com/api/v2/oauth/token", `client_id=${TS_CLIENT_ID}&client_secret=${TS_CLIENT_SECRET}`);
         console.log(tokenResponse.data.access_token);
         const access_token = tokenResponse.data.access_token;
@@ -93,6 +115,8 @@ function updateTailscaleAcl(domainPrefix) {
                     InsecureForTests: true,
                     DERPPort: DERP_PORT,
                     STUNPort: STUN_PORT,
+                    IPv4: ipv4 ? ipv4 : null,
+                    IPv6: ipv6 ? ipv6 : null,
                 },
             ],
         };
@@ -104,36 +128,6 @@ function updateTailscaleAcl(domainPrefix) {
             data: acl,
         })).data;
         console.log(JSON.stringify(latestAcl));
-    });
-}
-function createSelfIpRecord(domainPrefix, ip) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield client.dns.records.create({
-            type: "A",
-            zone_id: CF_ZONE_ID,
-            name: domainPrefix,
-            content: ip,
-            proxied: false,
-            ttl: 60,
-        });
-        console.log("Updated DNS record for", domainPrefix, "to", ip);
-    });
-}
-function removeExistRecord() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const dnsRecords = yield client.dns.records.list({
-            zone_id: CF_ZONE_ID,
-            name: {
-                startswith: "auto-derp",
-            },
-            type: "A",
-        });
-        for (const record of dnsRecords.result) {
-            yield client.dns.records.delete(record.id, {
-                zone_id: CF_ZONE_ID,
-            });
-            console.log("Deleted DNS record for", record.name);
-        }
     });
 }
 function writeServiceFile(domainPrefix) {
@@ -166,12 +160,13 @@ function writeDomainPrefix(domainPrefix) {
 }
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
-        yield removeExistRecord();
-        const ip = yield getIpAddress();
-        const domainPrefix = "auto-derp-" + ip.replace(/\./g, "-");
-        yield createSelfIpRecord(domainPrefix, ip);
-        yield new Promise((resolve) => setTimeout(resolve, 5000));
-        yield updateTailscaleAcl(domainPrefix);
+        const ipv4 = yield getIpV4Address();
+        const ipv6 = yield getIpV6Address();
+        const domainPrefix = "auto-derp-" + ipv4.replace(/\./g, "-");
+        console.log("IPv4:", ipv4);
+        console.log("IPv6:", ipv6);
+        console.log("Domain Prefix:", domainPrefix);
+        yield updateTailscaleAcl(domainPrefix, ipv4, ipv6);
         writeServiceFile(domainPrefix);
         writeDomainPrefix(domainPrefix);
     });
